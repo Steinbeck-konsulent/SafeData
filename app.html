@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeData — Lokalt datahåndteringsværktøj</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
+
+    :root {
+      --bg:        #0f0e0c;
+      --surface:   #1a1916;
+      --border:    #2e2c28;
+      --accent:    #c8b46a;
+      --accent2:   #6ab4a0;
+      --danger:    #c86a6a;
+      --text:      #e8e4dc;
+      --muted:     #8a8678;
+      --child:     #6ab4a0;
+      --staff:     #c8b46a;
+      --radius:    6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── NOISE TEXTURE ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.6;
+    }
+
+    /* ── LAYOUT ── */
+    .shell { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex; align-items: center; gap: 20px;
+      background: rgba(15,14,12,0.8);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo-mark {
+      width: 36px; height: 36px;
+      border: 1.5px solid var(--accent);
+      border-radius: 4px;
+      display: grid; place-items: center;
+      font-size: 16px; color: var(--accent);
+    }
+
+    .logo-text { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.02em; }
+    .logo-text span { color: var(--accent); font-style: italic; }
+
+    .header-badge {
+      margin-left: auto;
+      background: rgba(200,100,100,0.12);
+      border: 1px solid rgba(200,100,100,0.3);
+      color: var(--danger);
+      padding: 4px 10px; border-radius: 3px;
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    /* ── NAV TABS ── */
+    .nav {
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      background: var(--surface);
+    }
+
+    .nav-tab {
+      padding: 14px 20px;
+      border: none; background: none;
+      color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px;
+      cursor: pointer; letter-spacing: 0.05em;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-icon { font-size: 14px; }
+
+    /* ── MAIN CONTENT ── */
+    .content { flex: 1; padding: 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── SECTION TITLES ── */
+    .section-title {
+      font-family: 'Fraunces', serif;
+      font-size: 26px; font-weight: 300;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .section-sub { color: var(--muted); margin-bottom: 28px; line-height: 1.6; font-size: 12px; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 16px;
+    }
+
+    /* ── FORM ELEMENTS ── */
+    .form-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 0; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+
+    label { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+
+    input[type="text"], select, textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace; font-size: 13px;
+      padding: 10px 14px; border-radius: var(--radius);
+      transition: border-color 0.15s;
+      outline: none;
+      width: 100%;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    select option { background: var(--bg); }
+
+    textarea { resize: vertical; min-height: 120px; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      padding: 10px 20px; border-radius: var(--radius);
+      border: 1px solid transparent;
+      font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+      cursor: pointer; letter-spacing: 0.05em;
+      transition: all 0.15s; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+
+    .btn-primary {
+      background: var(--accent); color: var(--bg);
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: #d4c07a; }
+
+    .btn-secondary {
+      background: transparent; color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-ghost {
+      background: transparent; color: var(--muted);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { color: var(--text); }
+
+    .btn-danger {
+      background: transparent; color: var(--danger);
+      border-color: rgba(200,106,106,0.3);
+    }
+    .btn-danger:hover { background: rgba(200,106,106,0.1); }
+
+    .btn-teal {
+      background: var(--accent2); color: var(--bg);
+      border-color: var(--accent2);
+    }
+    .btn-teal:hover { background: #7ac4b0; }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 3px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+      font-weight: 500;
+    }
+    .badge-child { background: rgba(106,180,160,0.15); color: var(--child); border: 1px solid rgba(106,180,160,0.25); }
+    .badge-staff { background: rgba(200,180,106,0.15); color: var(--staff); border: 1px solid rgba(200,180,106,0.25); }
+
+    /* ── CODE CHIP ── */
+    .code-chip {
+      font-family: 'DM Mono', monospace;
+      background: rgba(200,180,106,0.1);
+      border: 1px solid rgba(200,180,106,0.2);
+      color: var(--accent); padding: 2px 8px; border-radius: 3px;
+      font-size: 12px;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th {
+      text-align: left; font-size: 10px; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 12px; border-bottom: 1px solid rgba(46,44,40,0.5);
+      font-size: 12px;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── SEARCH ── */
+    .search-wrap { position: relative; margin-bottom: 16px; }
+    .search-wrap input { padding-left: 36px; }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 14px; pointer-events: none;
+    }
+
+    /* ── FILE UPLOAD ZONE ── */
+    .drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(200,180,106,0.04);
+    }
+
+    .drop-zone-icon { font-size: 28px; margin-bottom: 8px; color: var(--muted); }
+    .drop-zone-text { color: var(--muted); font-size: 12px; }
+    .drop-zone-text strong { color: var(--accent); }
+
+    /* ── COLUMN SELECTOR ── */
+    .col-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    .col-pill {
+      padding: 5px 12px; border-radius: 20px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px;
+      cursor: pointer; transition: all 0.15s;
+    }
+
+    .col-pill.selected {
+      border-color: var(--accent); background: rgba(200,180,106,0.1);
+      color: var(--accent);
+    }
+
+    /* ── ALERT BANNER ── */
+    .alert {
+      padding: 12px 16px; border-radius: var(--radius);
+      font-size: 12px; line-height: 1.5; margin-bottom: 20px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+
+    .alert-warning {
+      background: rgba(200,106,106,0.08);
+      border: 1px solid rgba(200,106,106,0.25);
+      color: #e8a0a0;
+    }
+
+    .alert-info {
+      background: rgba(106,180,160,0.08);
+      border: 1px solid rgba(106,180,160,0.25);
+      color: #90ccc0;
+    }
+
+    .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── STATS ROW ── */
+    .stats { display: flex; gap: 16px; margin-bottom: 24px; }
+
+    .stat {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 20px; flex: 1;
+    }
+
+    .stat-val {
+      font-family: 'Fraunces', serif; font-size: 28px; font-weight: 300;
+      color: var(--accent); line-height: 1;
+    }
+
+    .stat-label { color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 12px 18px;
+      border-radius: var(--radius); font-size: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 999; display: flex; align-items: center; gap: 8px;
+      max-width: 320px;
+    }
+
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-left: 3px solid var(--accent2); }
+    #toast.error   { border-left: 3px solid var(--danger); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 16px 32px;
+      color: var(--muted); font-size: 11px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center; padding: 48px;
+      color: var(--muted);
+    }
+
+    .empty-icon { font-size: 32px; margin-bottom: 12px; }
+    .empty-text { font-size: 13px; }
+
+    /* ── GRID SPLIT ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── STEP LIST ── */
+    .steps { list-style: none; counter-reset: steps; }
+    .steps li {
+      counter-increment: steps;
+      padding: 10px 0 10px 36px; position: relative;
+      border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted);
+      line-height: 1.6;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(steps);
+      position: absolute; left: 0; top: 10px;
+      width: 22px; height: 22px;
+      background: rgba(200,180,106,0.1); border: 1px solid rgba(200,180,106,0.3);
+      border-radius: 50%; color: var(--accent);
+      font-size: 10px; display: grid; place-items: center;
+    }
+    .steps li strong { color: var(--text); }
+
+    /* ── GDPR BOX ── */
+    .gdpr-box {
+      background: rgba(200,106,106,0.05);
+      border: 1px solid rgba(200,106,106,0.2);
+      border-radius: var(--radius); padding: 20px;
+      margin-top: 16px;
+    }
+    .gdpr-title {
+      color: var(--danger); font-size: 11px; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 10px; font-weight: 500;
+    }
+    .gdpr-box p { color: #c8a0a0; font-size: 12px; line-height: 1.7; margin-bottom: 8px; }
+    .gdpr-box p:last-child { margin-bottom: 0; }
+
+    /* ── ANIMATION ── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .panel.active { animation: fadeIn 0.25s ease; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      .content { padding: 20px; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .stats { flex-direction: column; }
+      .form-row { flex-direction: column; }
+      header { padding: 14px 20px; }
+      .nav { padding: 0 20px; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-mark">⬡</div>
+    <div>
+      <div class="logo-text">Safe<span>Data</span></div>
+    </div>
+    <div class="header-badge">🔒 Kun lokal brug</div>
+  </header>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <button class="nav-tab active" onclick="showPanel('create')" id="tab-create">
+      <span class="tab-icon">＋</span> Opret person
+    </button>
+    <button class="nav-tab" onclick="showPanel('pseudo')" id="tab-pseudo">
+      <span class="tab-icon">⇄</span> Pseudonymisér
+    </button>
+    <button class="nav-tab" onclick="showPanel('reident')" id="tab-reident">
+      <span class="tab-icon">↩</span> Re-identificér
+    </button>
+    <button class="nav-tab" onclick="showPanel('overview')" id="tab-overview">
+      <span class="tab-icon">☰</span> Oversigt
+    </button>
+    <button class="nav-tab" onclick="showPanel('help')" id="tab-help">
+      <span class="tab-icon">?</span> Vejledning
+    </button>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="content">
+
+    <!-- ──────────── PANEL: OPRET ──────────── -->
+    <div class="panel active" id="panel-create">
+      <h1 class="section-title">Opret person</h1>
+      <p class="section-sub">Indtast navn og vælg kategori. Systemet genererer en unik kode og gemmer den lokalt i din browser.</p>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠</span>
+        <div><strong>Nøglefilen er fortrolig.</strong> Den fil, du kan eksportere herfra, forbinder rigtige navne med koder. Del den <em>aldrig</em> med AI-systemer eller upload den til cloud-tjenester.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Ny person</div>
+        <div class="form-row">
+          <div class="field">
+            <label>Fulde navn</label>
+            <input type="text" id="inp-name" placeholder="f.eks. Emma Hansen" onkeydown="if(event.key==='Enter') addPerson()" />
+          </div>
+          <div class="field" style="max-width:180px">
+            <label>Kategori</label>
+            <select id="inp-type">
+              <option value="barn">Barn</option>
+              <option value="medarbejder">Medarbejder</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="addPerson()" style="margin-bottom:1px">
+            ＋ Tilføj &amp; generér kode
+          </button>
+        </div>
+      </div>
+
+      <div id="recent-card" class="card" style="display:none">
+        <div class="card-title">Senest tilføjet</div>
+        <div id="recent-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Eksportér nøglefil</div>
+        <p style="color:var(--muted); font-size:12px; margin-bottom:16px; line-height:1.6">
+          Nøglefilen indeholder alle navne og koder. Gem den sikkert — <strong style="color:var(--danger)">del den aldrig med AI eller cloud</strong>.
+          Analysedata (kun koder) er det, du sender til AI.
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="exportKey('json')">⬇ Eksportér nøglefil (JSON)</button>
+          <button class="btn btn-secondary" onclick="exportKey('csv')">⬇ Eksportér nøglefil (CSV)</button>
+          <button class="btn btn-ghost" onclick="importKeyFile()">⬆ Importér eksisterende nøglefil</button>
+        </div>
+        <input type="file" id="import-key-input" accept=".json,.csv" style="display:none" onchange="loadKeyFile(event)" />
+      </div>
+    </div>
+
+    <!-- ──────────── PANEL: PSEUDONYMISÉR ──────────── -->
+    <div class="panel" id="panel-pseudo">
+      <h1 class="section-title">Pseudonymisér datasæt</h1>
+      <p class="section-sub">Upload en CSV-fil eller indsæt data direkte. Vælg hvilke kolonner der indeholder navne — systemet erstatter dem med koder.</p>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ</span>
+        <div>Den resulterende fil er <strong>sikker til AI og analyse</strong>. Navne er erstattet med koder. Gem den originale nøglefil separat og sikkert.</div>
+      </div>
+
+      <!-- Upload -->
+      <div class="card">
+        <div class="card-title">Trin 1 — Indlæs data</div>
+        <div class="drop-zone" id="drop-zone-pseudo"
+          onclick="document.getElementById('file-pseudo').click()"
+          ondragover="dragOver(event,'drop-zone-pseudo')"
+          ondragleave="dragLeave('drop-zone-pseudo')"
+          ondrop="dropFile(event,'pseudo')">
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-text">
+            <strong>Klik for at vælge fil</strong> eller træk og slip her<br>
+            Understøtter CSV (UTF-8, semikolon- eller kommasepareret)
+          </div>
+        </div>
+        <input type="file" id="file-pseudo" accept=".csv" style="display:none" onchange="loadCSV(event,'pseudo')" />
+        <div style="margin-top:16px">
+          <div class="card-title">— eller indsæt CSV-tekst direkte —</div>
+          <textarea id="csv-text-pseudo" placeholder="navn;klasse;dato&#10;Emma Hansen;3A;2024-01-15&#10;Lars Nielsen;3A;2024-01-15" style="margin-top:8px"></textarea>
+          <button class="btn btn-secondary" onclick="parseTextCSV('pseudo')" style="margin-top:8px">Indlæs tekst</button>
+        </div>
+      </div>
+
+      <!-- Column selector -->
+      <div class="card" id="col-card-pseudo" style="display:none">
+        <div class="card-title">Trin 2 — Vælg kolonner med navne</div>
+        <p style="color:var(--muted);font-size:12px;margin-bottom:10px">Klik på de kolonner der indeholder navne, der skal safedataes:</p>
+        <div class="col-selector" id="col-pills-pseudo"></div>
+      </div>
+
+      <!-- Preview + action -->
+      <div class="card" id="preview-card-pseudo" style="display:none">
+        <div class="card-title">Trin 3 — Forhåndsvisning &amp; download</div>
+        <div id="preview-table-pseudo" class="table-wrap" style="margin-bottom:16px; max-height:300px; overflow-y:auto"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="runPseudo()">⇄ Pseudonymisér &amp; download CSV</button>
+          <button class="btn btn-ghost" onclick="resetPanel('pseudo')">✕ Nulstil</button>
+        </div>
+        <div id="pseudo-warning" style="display:none; margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- ──────────── PANEL: RE-IDENTIFICÉR ──────────── -->
+    <div class="panel" id="panel-reident">
+      <h1 class="section-title">Re-identificér datasæt</h1>
+      <p class="section-sub">Upload en safedataet fil og erstat koderne med rigtige navne vha. nøglefilen.</p>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠</span>
+        <div><strong>Fortrolig operation.</strong> Den re-identificerede fil indeholder rigtige navne og må ikke sendes til AI-tjenester eller deles ukrypteret.</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Trin 1 — Upload safedataet fil</div>
+          <div class="drop-zone" id="drop-zone-reident"
+            onclick="document.getElementById('file-reident').click()"
+            ondragover="dragOver(event,'drop-zone-reident')"
+            ondragleave="dragLeave('drop-zone-reident')"
+            ondrop="dropFile(event,'reident')">
+            <div class="drop-zone-icon">🔑</div>
+            <div class="drop-zone-text"><strong>Upload safedataet CSV</strong></div>
+          </div>
+          <input type="file" id="file-reident" accept=".csv" style="display:none" onchange="loadCSV(event,'reident')" />
+        </div>
+
+        <div class="card">
+          <div class="card-title">Trin 2 — Nøglefil (valgfrit)</div>
+          <p style="color:var(--muted);font-size:12px;margin-bottom:12px;line-height:1.6">
+            Systemet bruger automatisk den indlæste nøgle. Upload alternativt en separat JSON/CSV-nøglefil:
+          </p>
+          <div class="drop-zone" id="drop-zone-key"
+            onclick="document.getElementById('file-key-reident').click()"
+            ondragover="dragOver(event,'drop-zone-key')"
+            ondragleave="dragLeave('drop-zone-key')"
+            ondrop="dropFileKey(event)">
+            <div class="drop-zone-icon">🗝</div>
+            <div class="drop-zone-text"><strong>Upload nøglefil (JSON/CSV)</strong><br><span style="font-size:11px">Valgfrit — bruges kun hvis forskellig fra aktiv nøgle</span></div>
+          </div>
+          <input type="file" id="file-key-reident" accept=".json,.csv" style="display:none" onchange="loadTempKey(event)" />
+          <div id="temp-key-status" style="margin-top:8px; font-size:11px; color:var(--accent2)"></div>
+        </div>
+      </div>
+
+      <div class="card" id="col-card-reident" style="display:none">
+        <div class="card-title">Trin 3 — Vælg kolonner med koder</div>
+        <div class="col-selector" id="col-pills-reident"></div>
+      </div>
+
+      <div class="card" id="preview-card-reident" style="display:none">
+        <div class="card-title">Trin 4 — Forhåndsvisning &amp; download</div>
+        <div id="preview-table-reident" class="table-wrap" style="margin-bottom:16px; max-height:300px; overflow-y:auto"></div>
+        <button class="btn btn-teal" onclick="runReident()">↩ Re-identificér &amp; download CSV</button>
+        <button class="btn btn-ghost" onclick="resetPanel('reident')" style="margin-left:8px">✕ Nulstil</button>
+      </div>
+    </div>
+
+    <!-- ──────────── PANEL: OVERSIGT ──────────── -->
+    <div class="panel" id="panel-overview">
+      <h1 class="section-title">Oversigt</h1>
+      <p class="section-sub">Alle registrerede personer i den lokale nøgle.</p>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-val" id="stat-total">0</div>
+          <div class="stat-label">Totalt antal personer</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="stat-children" style="color:var(--child)">0</div>
+          <div class="stat-label">Børn</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="stat-staff" style="color:var(--staff)">0</div>
+          <div class="stat-label">Medarbejdere</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px">
+          <div class="search-wrap" style="flex:1; margin-bottom:0">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Søg på navn eller kode…" oninput="renderOverview()" />
+          </div>
+          <div style="display:flex; gap:8px">
+            <button class="btn btn-danger" onclick="clearAllData()">🗑 Ryd alle data</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Kategori</th>
+                <th>Kode</th>
+                <th>Oprettet</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="overview-tbody"></tbody>
+          </table>
+          <div id="overview-empty" class="empty" style="display:none">
+            <div class="empty-icon">📋</div>
+            <div class="empty-text">Ingen personer endnu. Gå til <strong>Opret person</strong> for at tilføje.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────────── PANEL: VEJLEDNING ──────────── -->
+    <div class="panel" id="panel-help">
+      <h1 class="section-title">Vejledning &amp; GDPR</h1>
+      <p class="section-sub">Kom godt i gang og forstå begrænsningerne.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Hurtig startvejledning</div>
+          <ol class="steps">
+            <li><strong>Opret personer:</strong> Gå til "Opret person", skriv navn og vælg barn eller medarbejder. Klik "Tilføj".</li>
+            <li><strong>Eksportér nøglefil:</strong> Gem nøglefilen (JSON eller CSV) et sikkert sted — ikke i cloud, ikke i AI.</li>
+            <li><strong>Pseudonymisér:</strong> Upload en CSV med navne, vælg navnekolonnerne, download den anonymiserede fil.</li>
+            <li><strong>Brug til analyse:</strong> Send den safedataede fil til AI, regneark eller kolleger.</li>
+            <li><strong>Re-identificér:</strong> Når du skal koble navne tilbage, brug "Re-identificér"-fanebladet med nøglefilen.</li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Teknisk arkitektur</div>
+          <ol class="steps">
+            <li><strong>Ingen server:</strong> Alt kører i din browser. Ingen data sendes nogen steder.</li>
+            <li><strong>Lokal lagring:</strong> Nøglen gemmes i browser-localStorage — kun tilgængelig på denne enhed.</li>
+            <li><strong>Koder:</strong> Genereres som tilfældige præfixede ID'er (f.eks. B-2F9A, M-7C3E). Samme navn giver altid samme kode.</li>
+            <li><strong>CSV-format:</strong> Understøtter komma- og semikolonseparering, med automatisk genkendelse.</li>
+            <li><strong>Eksport:</strong> Nøglefil kan eksporteres som JSON eller CSV. Importér igen på ny enhed.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="gdpr-box">
+        <div class="gdpr-title">⚠ GDPR — Vigtige begrænsninger</div>
+        <p><strong>SafeDataing ≠ anonymisering.</strong> Denne løsning reducerer risikoen ved datafejl, men fritager dig ikke for GDPR-ansvar. Nøglefilen udgør stadig persondata og er underlagt databeskyttelsesreglerne.</p>
+        <p><strong>Du er dataansvarlig.</strong> Som bruger af dette system bærer du selv ansvaret for at sikre, at behandlingen af persondata sker lovligt, herunder at der foreligger et behandlingsgrundlag (typisk samtykke eller legitim interesse).</p>
+        <p><strong>Nøglefilen er kritisk.</strong> Kompromitteres nøglefilen, ophæves safedataingen. Opbevar den krypteret, adgangskodebeskyttet og separat fra analysedata.</p>
+        <p><strong>Slet data korrekt.</strong> "Ryd alle data" fjerner kun browserens lokale kopi. Eksporterede filer skal slettes manuelt efter databehandlingens ophør.</p>
+        <p><strong>Ikke godkendt som anonymisering.</strong> SafeDataede data tæller stadig som persondata under GDPR. Brug dette system til at reducere eksponeringsrisiko — ikke til at omgå reglerne.</p>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">CSV-formateksempel</div>
+        <pre style="color:var(--muted); font-size:11px; line-height:1.8; overflow-x:auto">
+navn;klasse;dato;kommentar
+Emma Hansen;3A;2024-01-15;Observation 1
+Lars Nielsen;3B;2024-01-16;Observation 2
+
+→ Efter safedataing:
+
+navn;klasse;dato;kommentar
+B-2F9A;3A;2024-01-15;Observation 1
+B-7C3E;3B;2024-01-16;Observation 2</pre>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <span>SafeData v1.0 — Kører 100% lokalt i din browser</span>
+    <span style="color:var(--danger)">🔒 Nøglefilen må ALDRIG deles med AI-systemer</span>
+  </footer>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  PSEUDONYMISER — Lokal safedataing af persondata
+//  Kører udelukkende i browseren. Ingen ekstern kommunikation.
+//  Alle data gemmes i localStorage på din enhed.
+//
+//  SIKKERHED:
+//  - keyStore (nøglefilen) indeholder NAVNE → del den ALDRIG
+//  - Eksporterede safedataede filer er SIKRE til AI
+// ═══════════════════════════════════════════════════════════════
+
+const STORAGE_KEY = 'safedata_keystore';
+
+// ── STATE ──────────────────────────────────────────────────────
+let keyStore = {};       // { name_lc: { name, type, code, created } }
+let pseudoData = null;   // { headers, rows } — aktiv CSV til pseudo
+let reidentData = null;  // { headers, rows } — aktiv CSV til reident
+let selectedColsPseudo = [];
+let selectedColsReident = [];
+let tempKey = null;      // Alternativ nøgle uploadet til reident
+
+// ── INIT ────────────────────────────────────────────────────────
+function init() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try { keyStore = JSON.parse(saved); } catch(e) { keyStore = {}; }
+  }
+  renderOverview();
+  renderStats();
+}
+
+// ── PANEL NAVIGATION ────────────────────────────────────────────
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'overview') { renderOverview(); renderStats(); }
+}
+
+// ── CODE GENERATION ─────────────────────────────────────────────
+// Genererer tilfældig 4-tegns hex-streng som kode
+// Præfix: B = barn, M = medarbejder
+function generateCode(type) {
+  const prefix = type === 'barn' ? 'B' : 'M';
+  const chars = '0123456789ABCDEF';
+  let code;
+  const existingCodes = new Set(Object.values(keyStore).map(p => p.code));
+  do {
+    code = prefix + '-' + Array.from({length: 4}, () =>
+      chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (existingCodes.has(code)); // Garantér unikhed
+  return code;
+}
+
+// ── ADD PERSON ───────────────────────────────────────────────────
+function addPerson() {
+  const name = document.getElementById('inp-name').value.trim();
+  const type = document.getElementById('inp-type').value;
+  if (!name) { toast('Skriv et navn først', 'error'); return; }
+
+  const key = name.toLowerCase();
+
+  if (keyStore[key]) {
+    toast(`${name} er allerede registreret med kode ${keyStore[key].code}`, 'error');
+    return;
+  }
+
+  const code = generateCode(type);
+  keyStore[key] = { name, type, code, created: new Date().toLocaleDateString('da-DK') };
+  saveStore();
+
+  // Vis i "senest tilføjet"
+  const card = document.getElementById('recent-card');
+  const list = document.getElementById('recent-list');
+  card.style.display = 'block';
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)';
+  row.innerHTML = `
+    <span class="badge badge-${type === 'barn' ? 'child' : 'staff'}">${type}</span>
+    <span style="flex:1">${escHtml(name)}</span>
+    <span class="code-chip">${code}</span>`;
+  list.prepend(row);
+
+  document.getElementById('inp-name').value = '';
+  renderStats();
+  toast(`${name} tilføjet med koden ${code}`, 'success');
+}
+
+// ── LOOKUP ───────────────────────────────────────────────────────
+// Slår navn op → kode (opretter ny hvis unknown)
+function nameToCcode(name) {
+  const key = name.trim().toLowerCase();
+  if (!key) return name; // Tom celle
+  if (keyStore[key]) return keyStore[key].code;
+  // Navn ikke i nøgle — returnér original og advar
+  return null;
+}
+
+// Slår kode op → navn
+function codeToName(code, tempKeyArg) {
+  const src = tempKeyArg || keyStore;
+  // Søg i begge formater
+  for (const [, person] of Object.entries(src)) {
+    if (person.code === code.trim()) return person.name;
+  }
+  return null;
+}
+
+// ── SAVE / LOAD ──────────────────────────────────────────────────
+function saveStore() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(keyStore));
+}
+
+// ── CSV PARSING ──────────────────────────────────────────────────
+function detectDelimiter(text) {
+  const line = text.split('\n')[0];
+  return line.includes(';') ? ';' : ',';
+}
+
+function parseCSV(text) {
+  const delim = detectDelimiter(text);
+  const lines = text.trim().split('\n').map(l => l.replace(/\r$/, ''));
+  if (lines.length < 1) return null;
+  const headers = lines[0].split(delim).map(h => h.trim().replace(/^"|"$/g, ''));
+  const rows = lines.slice(1).filter(l => l.trim()).map(l => {
+    // Basic CSV parse — handles quoted fields
+    const cells = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < l.length; i++) {
+      if (l[i] === '"') { inQ = !inQ; }
+      else if (l[i] === delim && !inQ) { cells.push(cur.trim()); cur = ''; }
+      else { cur += l[i]; }
+    }
+    cells.push(cur.trim());
+    return cells;
+  });
+  return { headers, rows, delim };
+}
+
+function rowsToCSV(headers, rows, delim = ';') {
+  const esc = v => (v.includes(delim) || v.includes('"') || v.includes('\n'))
+    ? `"${v.replace(/"/g,'""')}"` : v;
+  return [headers.map(esc).join(delim),
+    ...rows.map(r => r.map(esc).join(delim))].join('\n');
+}
+
+// ── FILE DROP/UPLOAD ─────────────────────────────────────────────
+function dragOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+function dragLeave(id) { document.getElementById(id).classList.remove('drag-over'); }
+
+function dropFile(e, mode) {
+  e.preventDefault();
+  dragLeave('drop-zone-' + mode);
+  const file = e.dataTransfer.files[0];
+  if (file) processCSVFile(file, mode);
+}
+
+function dropFileKey(e) {
+  e.preventDefault();
+  dragLeave('drop-zone-key');
+  const file = e.dataTransfer.files[0];
+  if (file) processKeyFile(file);
+}
+
+function loadCSV(event, mode) {
+  const file = event.target.files[0];
+  if (file) processCSVFile(file, mode);
+}
+
+function processCSVFile(file, mode) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+    if (!parsed) { toast('Kunne ikke læse filen', 'error'); return; }
+    if (mode === 'pseudo') { pseudoData = parsed; renderColPills('pseudo'); renderPreview('pseudo'); }
+    else { reidentData = parsed; renderColPills('reident'); renderPreview('reident'); }
+    toast(`Fil indlæst: ${parsed.headers.length} kolonner, ${parsed.rows.length} rækker`, 'success');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseTextCSV(mode) {
+  const text = document.getElementById('csv-text-' + mode).value;
+  if (!text.trim()) { toast('Indsæt CSV-tekst først', 'error'); return; }
+  const parsed = parseCSV(text);
+  if (!parsed) { toast('Kunne ikke parse teksten', 'error'); return; }
+  if (mode === 'pseudo') { pseudoData = parsed; renderColPills('pseudo'); renderPreview('pseudo'); }
+  toast(`Tekst indlæst: ${parsed.headers.length} kolonner, ${parsed.rows.length} rækker`, 'success');
+}
+
+// ── COLUMN PILLS ─────────────────────────────────────────────────
+function renderColPills(mode) {
+  const data = mode === 'pseudo' ? pseudoData : reidentData;
+  if (!data) return;
+  const container = document.getElementById('col-pills-' + mode);
+  const card = document.getElementById('col-card-' + mode);
+  card.style.display = 'block';
+  container.innerHTML = '';
+  if (mode === 'pseudo') selectedColsPseudo = [];
+  else selectedColsReident = [];
+
+  data.headers.forEach((h, i) => {
+    const pill = document.createElement('button');
+    pill.className = 'col-pill';
+    pill.textContent = h;
+    pill.onclick = () => toggleCol(pill, i, mode);
+    container.appendChild(pill);
+  });
+
+  // Auto-detect kolonner der hedder "navn" e.l.
+  data.headers.forEach((h, i) => {
+    if (/navn|name/i.test(h)) {
+      container.children[i].click();
+    }
+  });
+}
+
+function toggleCol(pill, idx, mode) {
+  const arr = mode === 'pseudo' ? selectedColsPseudo : selectedColsReident;
+  const pos = arr.indexOf(idx);
+  if (pos === -1) { arr.push(idx); pill.classList.add('selected'); }
+  else { arr.splice(pos, 1); pill.classList.remove('selected'); }
+  renderPreview(mode);
+}
+
+// ── PREVIEW TABLE ─────────────────────────────────────────────────
+function renderPreview(mode) {
+  const data = mode === 'pseudo' ? pseudoData : reidentData;
+  const selected = mode === 'pseudo' ? selectedColsPseudo : selectedColsReident;
+  const container = document.getElementById('preview-table-' + mode);
+  const card = document.getElementById('preview-card-' + mode);
+  if (!data) return;
+  card.style.display = 'block';
+
+  const max = 5;
+  let html = '<table><thead><tr>';
+  data.headers.forEach((h, i) => {
+    const hl = selected.includes(i) ? `style="color:var(--accent)"` : '';
+    html += `<th ${hl}>${escHtml(h)}${selected.includes(i) ? ' ●' : ''}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  data.rows.slice(0, max).forEach(row => {
+    html += '<tr>';
+    row.forEach((cell, i) => {
+      html += `<td>${escHtml(cell)}</td>`;
+    });
+    html += '</tr>';
+  });
+  if (data.rows.length > max) {
+    html += `<tr><td colspan="${data.headers.length}" style="color:var(--muted); text-align:center">
+      … og ${data.rows.length - max} rækker mere</td></tr>`;
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// ── RUN PSEUDONYMISERING ─────────────────────────────────────────
+function runPseudo() {
+  if (!pseudoData) { toast('Indlæs en fil først', 'error'); return; }
+  if (selectedColsPseudo.length === 0) { toast('Vælg mindst én kolonne med navne', 'error'); return; }
+
+  let unknowns = [];
+  const newRows = pseudoData.rows.map(row => {
+    return row.map((cell, i) => {
+      if (!selectedColsPseudo.includes(i)) return cell;
+      const code = nameToCcode(cell);
+      if (code === null && cell.trim()) { unknowns.push(cell); return cell; }
+      return code || cell;
+    });
+  });
+
+  if (unknowns.length > 0) {
+    const warn = document.getElementById('pseudo-warning');
+    const unique = [...new Set(unknowns)];
+    warn.style.display = 'block';
+    warn.innerHTML = `<div class="alert alert-warning">
+      <span class="alert-icon">⚠</span>
+      <div><strong>${unique.length} navn(e) ikke fundet i nøglefilen</strong> og er beholdt uændret: 
+      ${unique.map(escHtml).join(', ')}<br>
+      <span style="margin-top:6px;display:block">Opret dem under "Opret person" og prøv igen.</span></div></div>`;
+  }
+
+  const csv = rowsToCSV(pseudoData.headers, newRows, pseudoData.delim);
+  downloadFile(csv, 'safedataet_data.csv', 'text/csv;charset=utf-8;');
+  toast('SafeDataet fil downloadet ✓', 'success');
+  saveStore(); // Gem eventuelle nye entries
+}
+
+// ── RUN RE-IDENTIFICERING ────────────────────────────────────────
+function runReident() {
+  if (!reidentData) { toast('Indlæs en fil først', 'error'); return; }
+  if (selectedColsReident.length === 0) { toast('Vælg mindst én kolonne med koder', 'error'); return; }
+
+  const src = tempKey || keyStore;
+  let notFound = [];
+
+  const newRows = reidentData.rows.map(row => {
+    return row.map((cell, i) => {
+      if (!selectedColsReident.includes(i)) return cell;
+      const name = codeToName(cell, src);
+      if (!name && cell.trim()) notFound.push(cell);
+      return name || cell;
+    });
+  });
+
+  if (notFound.length > 0) {
+    toast(`${[...new Set(notFound)].length} kode(r) ikke fundet i nøglefilen`, 'error');
+  }
+
+  const csv = rowsToCSV(reidentData.headers, newRows, reidentData.delim);
+  downloadFile(csv, 're-identificeret_data.csv', 'text/csv;charset=utf-8;');
+  toast('Re-identificeret fil downloadet ✓', 'success');
+}
+
+// ── KEY FILE MANAGEMENT ──────────────────────────────────────────
+function exportKey(format) {
+  if (Object.keys(keyStore).length === 0) {
+    toast('Nøglefilen er tom — opret personer først', 'error'); return;
+  }
+
+  if (format === 'json') {
+    const data = JSON.stringify({
+      meta: {
+        tool: 'SafeData v1.0',
+        exported: new Date().toISOString(),
+        warning: 'FORTROLIG — Indeholder rigtige navne. Del ALDRIG med AI.',
+        count: Object.keys(keyStore).length
+      },
+      persons: keyStore
+    }, null, 2);
+    downloadFile(data, 'noeglefil_FORTROLIG.json', 'application/json');
+  } else {
+    const rows = Object.values(keyStore).map(p =>
+      [p.code, p.name, p.type, p.created]);
+    const csv = rowsToCSV(['kode','navn','kategori','oprettet'], rows);
+    downloadFile(csv, 'noeglefil_FORTROLIG.csv', 'text/csv;charset=utf-8;');
+  }
+  toast('Nøglefil eksporteret — gem den sikkert!', 'success');
+}
+
+function importKeyFile() {
+  document.getElementById('import-key-input').click();
+}
+
+function loadKeyFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      if (file.name.endsWith('.json')) {
+        const parsed = JSON.parse(e.target.result);
+        // Understøt begge formater: flad eller med meta/persons
+        const data = parsed.persons || parsed;
+        let count = 0;
+        for (const [k, v] of Object.entries(data)) {
+          if (v.name && v.code && v.type) {
+            const key = v.name.toLowerCase();
+            if (!keyStore[key]) { keyStore[key] = v; count++; }
+          }
+        }
+        saveStore(); renderOverview(); renderStats();
+        toast(`${count} nye personer importeret fra JSON`, 'success');
+      } else {
+        // CSV-format: kode,navn,kategori,oprettet
+        const parsed = parseCSV(e.target.result);
+        if (!parsed) { toast('Kunne ikke læse CSV-nøglefil', 'error'); return; }
+        const ci = parsed.headers.findIndex(h => /kode|code/i.test(h));
+        const ni = parsed.headers.findIndex(h => /navn|name/i.test(h));
+        const ti = parsed.headers.findIndex(h => /kategori|type/i.test(h));
+        const di = parsed.headers.findIndex(h => /opret|created/i.test(h));
+        let count = 0;
+        parsed.rows.forEach(row => {
+          const name = row[ni], code = row[ci], type = row[ti] || 'ukendt', created = row[di] || '';
+          if (name && code) {
+            const key = name.toLowerCase();
+            if (!keyStore[key]) { keyStore[key] = { name, code, type, created }; count++; }
+          }
+        });
+        saveStore(); renderOverview(); renderStats();
+        toast(`${count} nye personer importeret fra CSV`, 'success');
+      }
+    } catch(err) {
+      toast('Fejl ved import: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function loadTempKey(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      if (file.name.endsWith('.json')) {
+        const parsed = JSON.parse(e.target.result);
+        tempKey = parsed.persons || parsed;
+      } else {
+        const parsed = parseCSV(e.target.result);
+        const ci = parsed.headers.findIndex(h => /kode|code/i.test(h));
+        const ni = parsed.headers.findIndex(h => /navn|name/i.test(h));
+        const ti = parsed.headers.findIndex(h => /kategori|type/i.test(h));
+        tempKey = {};
+        parsed.rows.forEach(row => {
+          const name = row[ni], code = row[ci], type = row[ti] || 'ukendt';
+          if (name && code) tempKey[name.toLowerCase()] = { name, code, type };
+        });
+      }
+      const count = Object.keys(tempKey).length;
+      document.getElementById('temp-key-status').textContent = `✓ Nøglefil indlæst (${count} personer)`;
+      toast(`Nøglefil indlæst: ${count} personer`, 'success');
+    } catch(err) {
+      toast('Fejl ved indlæsning af nøglefil: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────
+function renderOverview() {
+  const tbody = document.getElementById('overview-tbody');
+  const empty = document.getElementById('overview-empty');
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const entries = Object.values(keyStore).filter(p =>
+    !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
+
+  if (entries.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = entries.map(p => `
+    <tr>
+      <td>${escHtml(p.name)}</td>
+      <td><span class="badge badge-${p.type === 'barn' ? 'child' : 'staff'}">${p.type}</span></td>
+      <td><span class="code-chip">${p.code}</span></td>
+      <td style="color:var(--muted)">${p.created || '—'}</td>
+      <td><button class="btn btn-ghost" style="padding:4px 8px; font-size:11px"
+        onclick="deletePerson('${p.name.toLowerCase().replace(/'/g,"\\'")}')">✕</button></td>
+    </tr>`).join('');
+}
+
+function renderStats() {
+  const all = Object.values(keyStore);
+  document.getElementById('stat-total').textContent = all.length;
+  document.getElementById('stat-children').textContent = all.filter(p => p.type === 'barn').length;
+  document.getElementById('stat-staff').textContent = all.filter(p => p.type === 'medarbejder').length;
+}
+
+function deletePerson(key) {
+  if (!keyStore[key]) return;
+  const name = keyStore[key].name;
+  if (!confirm(`Slet ${name} fra nøglefilen?\n\nAdvarsel: Eksisterende safedataede filer der bruger denne persons kode kan ikke længere re-identificeres.`)) return;
+  delete keyStore[key];
+  saveStore();
+  renderOverview();
+  renderStats();
+  toast(`${name} er slettet`, 'success');
+}
+
+function clearAllData() {
+  if (!confirm('Slet ALLE personer fra nøglefilen?\n\nDette kan ikke fortrydes. Eksportér nøglefilen først hvis du vil bevare data.')) return;
+  keyStore = {};
+  saveStore();
+  renderOverview();
+  renderStats();
+  toast('Alle data slettet', 'success');
+}
+
+// ── RESET PANELS ─────────────────────────────────────────────────
+function resetPanel(mode) {
+  if (mode === 'pseudo') {
+    pseudoData = null; selectedColsPseudo = [];
+    document.getElementById('col-card-pseudo').style.display = 'none';
+    document.getElementById('preview-card-pseudo').style.display = 'none';
+    document.getElementById('pseudo-warning').style.display = 'none';
+    document.getElementById('file-pseudo').value = '';
+    document.getElementById('csv-text-pseudo').value = '';
+  } else {
+    reidentData = null; selectedColsReident = []; tempKey = null;
+    document.getElementById('col-card-reident').style.display = 'none';
+    document.getElementById('preview-card-reident').style.display = 'none';
+    document.getElementById('file-reident').value = '';
+    document.getElementById('temp-key-status').textContent = '';
+  }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function downloadFile(content, filename, mime) {
+  const BOM = mime.includes('csv') ? '\uFEFF' : '';
+  const blob = new Blob([BOM + content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = (type === 'success' ? '✓ ' : '✕ ') + msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ── START ─────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
