@@ -1,8 +1,8 @@
 # SafeData 🔒
 
-**Lokalt safedataingsværktøj til børne- og medarbejderdata**
+**Lokalt værktøj til pseudonymisering af børne- og medarbejderdata**
 
-Et enkelt, browser-baseret system til safedataing af persondata — uden server, uden cloud, uden installation.
+Et enkelt, browser-baseret system til pseudonymisering af persondata — uden server, uden cloud, uden installation.
 
 ---
 
@@ -32,14 +32,14 @@ Ingen installation. Ingen server. Ingen internetforbindelse påkrævet.
 ## Mappestruktur
 
 ```
-safedata/
+SafeData/
 │
 ├── app.html              ← Hele applikationen (denne fil er alt du behøver)
 ├── README.md             ← Denne vejledning
 │
 └── docs/
     ├── eksempel_input.csv     ← Eksempel på input-fil
-    ├── eksempel_output.csv    ← Eksempel på safedataet output
+    ├── eksempel_output.csv    ← Eksempel på pseudonymiseret output
     └── eksempel_noeglefil.json ← Eksempel på nøglefil (struktur)
 ```
 
@@ -59,10 +59,10 @@ safedata/
 - Upload en CSV-fil (semikolon- eller kommasepareret)
 - Eller indsæt CSV-tekst direkte
 - Vælg hvilke kolonner der indeholder navne
-- Download safedataet fil (sikker til AI)
+- Download pseudonymiseret fil (sikker til AI)
 
 ### 3. Re-identificér datasæt
-- Upload en safedataet fil
+- Upload en pseudonymiseret fil
 - Systemet slår koderne op i nøglefilen
 - Download fil med rigtige navne
 
@@ -84,7 +84,7 @@ Emma Hansen;3A;2024-01-15;God dag
 Lars Nielsen;3B;2024-01-16;Observation
 ```
 
-**Output (safedataet):**
+**Output (pseudonymiseret):**
 ```
 navn;klasse;dato;kommentar
 B-2F9A;3A;2024-01-15;God dag
@@ -124,9 +124,9 @@ Nøglefilen gemmes som JSON. Eksempel:
 
 | Fil | Indhold | Sikker til AI? |
 |-----|---------|---------------|
-| `safedataet_data.csv` | Kun koder, ingen navne | ✅ Ja |
+| `pseudonymiseret_data.csv` | Kun koder, ingen navne | ✅ Ja |
 | `noeglefil_FORTROLIG.json` | Navne + koder | ❌ **Nej — aldrig** |
-| Browser localStorage | Nøglefil i krypteret browser-storage | ❌ Kun lokal brug |
+| Browser localStorage | Nøglefil gemt lokalt i browseren | ❌ Kun lokal brug |
 
 **Teknisk:**
 - Data gemmes kun i din browsers `localStorage`
@@ -138,13 +138,13 @@ Nøglefilen gemmes som JSON. Eksempel:
 
 ## ⚠ GDPR — Vigtige begrænsninger
 
-**Dette system er safedataing, ikke anonymisering.**
+**Dette system er pseudonymisering, ikke anonymisering.**
 
-- SafeDataede data tæller stadig som persondata under GDPR
+- Pseudonymiserede data tæller stadig som persondata under GDPR
 - Nøglefilen udgør persondata og er underlagt databeskyttelsesreglerne
 - Du er selv dataansvarlig og skal have et lovligt behandlingsgrundlag
 - Systemet reducerer eksponeringsrisiko men fritager ikke for GDPR-ansvar
-- Kompromitteres nøglefilen, ophæves safedataingen
+- Kompromitteres nøglefilen, ophæves pseudonymiseringen
 
 **Opbevar nøglefilen:**
 - Krypteret (fx i en adgangskodebeskyttet ZIP eller på krypteret drev)
@@ -176,7 +176,7 @@ Anbefalet stack: **Enkelt HTML + Vanilla JavaScript**
 
 1. **Kryptering af nøglefilen** — Brug Web Crypto API til at kryptere localStorage med adgangskode
 2. **Bulk-oprettelse** — Upload en liste med navne og opret alle på én gang
-3. **Audit log** — Log hvornår og hvad der er safedataet
+3. **Audit log** — Log hvornår og hvad der er pseudonymiseret
 4. **Regex-baseret søgning** — Find navne i fritekst, ikke kun CSV-kolonner
 5. **Electron-wrapper** — Pak appen som en rigtig desktop-app med filsystem-adgang
 6. **Backup-reminder** — Påmind brugeren om at eksportere nøglefilen regelmæssigt
